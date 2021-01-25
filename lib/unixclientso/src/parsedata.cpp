@@ -109,6 +109,12 @@ int ParseData::ReadPacket(char* szPacket, int iPackLen)
 		pTRingBuffer->PeekChar(iStartPos+4,packetlenlow);
 		pTRingBuffer->PeekChar(iStartPos+5,packetlenhigh);
 		packetlen = MAKESHORT(packetlenlow,packetlenhigh);
+		if(packetlen > MAX_BUFFER)
+		{
+			//处理异常数据
+			pTRingBuffer->Clear();	
+			return iRet;
+		}		
 		iStopPos = iStartPos+packetlen;
 		if (iStopPos <= pTRingBuffer->GetMaxReadSize())
 		{
