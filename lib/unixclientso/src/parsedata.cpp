@@ -120,6 +120,12 @@ int ParseData::ReadPacket(char* szPacket, int iPackLen)
 			}
 		}
 	}
-	
+	else
+	{
+		//长度够，但是不完全符合格式，清空
+		//printf("imcomplete with data format,clear all.\n");
+		pTRingBuffer->Clear();	
+		return iRet;	
+	}
 	return iRet;		
 }
