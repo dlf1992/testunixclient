@@ -80,6 +80,12 @@ bool UnixClient::connectserver(const char *socketfile,pFun pCallback)
 		close(sock);
 		return false;
 	}
+	else if(flag == 0)
+	{
+		//printf("select timeout\n");
+		close(sock);
+		return false;
+	}	
 	else
 	{
 		/*说明*/
@@ -170,7 +176,7 @@ void UnixClient::rcvdata()
 					{
 						if(FD_ISSET(sock,&rest))//judge
 						{
-							memset(rcvbuffer,0,MAX_BUFFER);
+							readagain: memset(rcvbuffer,0,MAX_BUFFER);
 							ssize_t _size=read(sock,rcvbuffer,MAX_BUFFER);
 							uint32 datalen = _size;
 							if(_size>0)
@@ -195,10 +201,10 @@ void UnixClient::rcvdata()
 								pParseData->dataprocess(rcvbuffer,datalen,m_pCallback);
 									
 							}
-							else
+							else if(_size == 0)
 							{
 								//TCP SERVER断开连接
-								//printf("domain server disconnected\n");
+								printf("domain server disconnected\n");
 								//获取互斥锁
 								variable_locker.mutex_lock();
 								connectstatus = false;
@@ -206,6 +212,22 @@ void UnixClient::rcvdata()
 								variable_locker.mutex_unlock();
 								//shutdown(sock,SHUT_RDWR);
 								close(sock);
+							}
+							else
+							{
+					            if(errno == EAGAIN)
+					            {
+									printf("errno = %d\n",errno);
+								}
+								else if(errno == EINTR)
+								{
+			                        printf("errno = %d\n",errno);
+			                        goto readagain;						
+								}
+								else 
+								{
+									printf("read error! errno = %d,break.\n",errno);
+								}
 							}
 						}
 					}				
@@ -232,7 +254,7 @@ int UnixClient::senddata(const char* buf,int buflen)
 	}
 	else
 	{
-		int sendlen = 0;
+		sendagain: int sendlen = 0;
 		sendlen = send(sock,buf,buflen,0);
 		////printf("domain senddata = %d\n",sendlen);
 		if(sendlen > 0)
@@ -241,10 +263,15 @@ int UnixClient::senddata(const char* buf,int buflen)
         }
         else if(sendlen<0)
 		{
-            if(errno == EINTR || errno == EAGAIN)
+            if(errno == EINTR)
             {
                 //printf("send error,errno = %d.\n",errno);
+				goto sendagain;
             }
+			else if(errno == EAGAIN)
+			{
+				//printf("send error,errno = %d.\n",errno);
+			}
             else
             {
                 disconnect();
